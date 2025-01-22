@@ -1,7 +1,14 @@
 const express = require('express');
-const app = express();
+const bodyParser = require('body-parser');
 const cors = require('cors');
 const crypto = require('crypto');
+
+
+const app = express();
+app.use(bodyParser.json()); // Para interpretar JSON
+app.use(bodyParser.text()); // Adicionado para aceitar payloads como texto
+app.use(bodyParser.urlencoded({ extended: true })); // Para interpretar dados de formulário
+
 
 const PORT = 3001;
 
@@ -24,6 +31,7 @@ function criptografar(mensagem, chavePublica) {
 
 // 3. Descriptografar com a chave privada
 function descriptografar(mensagemCriptografada, chavePrivada) {
+    console.log(`mensagemCriptografada:\r\n${mensagemCriptografada}\r\nchavePrivada:${chavePrivada}`)
     const bufferMensagemCriptografada = Buffer.from(mensagemCriptografada, 'base64'); // Converte a mensagem criptografada para buffer
     const mensagemDescriptografada = crypto.privateDecrypt(chavePrivada, bufferMensagemCriptografada); // Descriptografa
     return mensagemDescriptografada.toString('utf-8'); // Retorna como string
@@ -121,17 +129,60 @@ app.get('/tokendesessao', (req, res) => {
 
     const { publicKey, privateKey } = gerarParDeChaves();
 
-    const publicKeyStripped = removeKeyHeaders(publicKey);
-    const privateKeyStripped = removeKeyHeaders(privateKey);
+    globalPublicKey = publicKey
+    globalPrivateKey = privateKey
 
-    globalPublicKey = publicKeyStripped;
-    globalPrivateKey= privateKeyStripped;
 
-    // Define o cabeçalho HTTP com o token da sessão
-    res.set('tokensession', publicKeyStripped);
-    res.send(publicKeyStripped);
+    console.log(`${globalPublicKey}`)
+    console.log(`${globalPrivateKey}`)
+    // const publicKeyStripped = removeKeyHeaders(publicKey);
+    // const privateKeyStripped = removeKeyHeaders(privateKey);
+
+ 
+    res.send(publicKey);
 });
 
+app.post('/login', (req, res) => {
+    const mensagem = JSON.stringify(req.body, null, 2)
+    // Serializa e exibe o payload recebido
+    console.log(`/login:\n${req.body}`);
+    
+    // Verifica se o payload é uma string
+    if (typeof mensagem === 'string') {
+        try {
+            // Descriptografa o dado recebido com a chave privada
+            console.log(`${globalPrivateKey}`)
+            const decryptedData = descriptografar(mensagem, globalPrivateKey);
+            console.log('Dado descriptografado:', decryptedData);
+        } catch (error) {
+            console.error('Erro ao descriptografar os dados:', error);
+        }
+    } else {
+        console.error('Erro: O payload não é uma string.');
+    }
+
+    // Retorna o payload recebido como resposta
+    res.send(req.body);
+});
+
+
+app.post('/teste', (req, res) => {
+    const mensagem = JSON.stringify(req.body, null, 2)
+    // Serializa e exibe o payload recebido
+    console.log(`Dado recebido (JSON):\n${req.body}`);
+    
+    const { publicKey, privateKey } = gerarParDeChaves();
+
+    const mensagemTeste = mensagem //"isso é um teste"
+
+    console.log(`criptografar: ${mensagemTeste} ${publicKey}\r\n`);
+    const mensagemCriptografada = criptografar(mensagemTeste, globalPublicKey)
+
+    console.log(`mensagemCriptografada: ${mensagemCriptografada}\r\n`);
+    const mensagemDescriptografada = descriptografar(mensagemCriptografada, globalPrivateKey)
+    console.log(`mensagemDescriptografada: ${mensagemDescriptografada}\r\n`);
+    res.send(mensagemDescriptografada);
+});
 
 
 // Inicia o servidor

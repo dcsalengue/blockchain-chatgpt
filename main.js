@@ -1,3 +1,5 @@
+
+
 const URL_BASE = "http://localhost:3001"
 const cadastroNome = document.getElementById('cadastro__nome');
 const cadastroCpf = document.getElementById('cadastro__cpf');
@@ -173,7 +175,7 @@ botaCadastrar.addEventListener('click', async function (event) {
     }
 });
 
-async function listarUsuarios(){
+async function listarUsuarios() {
     try {
         const response = await axios.get(`${URL_BASE}/usuarios`)
         return await response.data
@@ -188,9 +190,9 @@ async function listarUsuarios(){
 document.addEventListener("DOMContentLoaded", async () => {
     const usuarios = await listarUsuarios()
     usuarios.forEach(usuario => {
-        listaUsuarios.innerHTML += `<li>[${usuario.nome}][${usuario.cpf}][${usuario.usuario}][${usuario.senha}]</li>`   
+        listaUsuarios.innerHTML += `<li>[${usuario.nome}][${usuario.cpf}][${usuario.usuario}][${usuario.senha}]</li>`
     });
-    
+
 });
 
 async function requisitarTokenDeSessao() {
@@ -202,17 +204,130 @@ async function requisitarTokenDeSessao() {
 
         // Obtendo os dados do corpo da resposta (body)
         return await response.data;
-        
+
     } catch (error) {
         alert(`Erro ao requisitar token de sessão \r\n${error}`);
         throw error;
     }
 }
+// Função para converter a chave pública PEM em ArrayBuffer
+function pemToArrayBuffer(pem) {
+    const base64 = pem
+        .replace(/-----BEGIN PUBLIC KEY-----/g, '')
+        .replace(/-----END PUBLIC KEY-----/g, '')
+        .replace(/\s+/g, ''); // Remove cabeçalhos, rodapés e espaços em branco
+    const binary = atob(base64); // Decodifica de Base64
+    const len = binary.length;
+    const bytes = new Uint8Array(len);
+    for (let i = 0; i < len; i++) {
+        bytes[i] = binary.charCodeAt(i);
+    }
+    return bytes.buffer;
+}
+
+// Função para importar a chave pública
+async function importPublicKey(pem) {
+    const arrayBuffer = pemToArrayBuffer(pem);
+    return crypto.subtle.importKey(
+        'spki', // Formato SPKI para chaves públicas
+        arrayBuffer,
+        {
+            name: 'RSA-OAEP', // Algoritmo de criptografia
+            hash: { name: 'SHA-256' }, // Hash utilizado
+        },
+        false, // Chave não exportável
+        ['encrypt'] // Usada apenas para criptografia
+    );
+}
+
+// Função para criptografar dados com a chave pública
+async function encryptWithPublicKey(publicKey, data) {
+    const encoder = new TextEncoder(); // Codifica dados para ArrayBuffer
+    const encodedData = encoder.encode(JSON.stringify(data)); // Converte para JSON e codifica
+    const encryptedData = await crypto.subtle.encrypt(
+        {
+            name: 'RSA-OAEP',
+        },
+        publicKey,
+        encodedData
+    );
+    return encryptedData; // Retorna um ArrayBuffer com os dados criptografados
+}
+
+async function encryptUserData(publicKeyPem, userData) {
+    try {
+        // Importar a chave pública
+        const publicKey = await importPublicKey(publicKeyPem);
+
+        // Criptografar os dados do usuário
+        const encryptedData = await encryptWithPublicKey(publicKey, userData);
+
+        // Converter os dados criptografados para Base64 para envio ao servidor
+        const encryptedBase64 = btoa(
+            String.fromCharCode(...new Uint8Array(encryptedData))
+        );
+
+        // Retorna os dados criptografados em Base64
+        return encryptedBase64;
+    } catch (error) {
+        console.error('Erro ao criptografar os dados:', error);
+        throw error; // Repassa o erro para ser tratado externamente
+    }
+}
 
 
-botaoLogin.addEventListener("click", async ()=>{
-    const token = await requisitarTokenDeSessao()
-    
+
+
+async function doLoginUsuario(loginEncriptado) {
+    try {
+        const response = await axios.post(`${URL_BASE}/login`, loginEncriptado, {
+            headers: {
+                'Content-Type': 'text/plain', // Indica que o corpo é texto simples
+            },
+        });
+
+
+        // Obtendo os dados do corpo da resposta (body)
+        return await response.data;
+
+    } catch (error) {
+        alert(`Erro logar \r\n${error}`);
+        throw error;
+    }
+}
+
+// Função de Criptografia
+function criptografar(mensagem, chavePublica) {
+    const crypto = window.cryptoBrowserify;
+    const bufferMensagem = Buffer.from(mensagem, 'utf-8');
+    const mensagemCriptografada = crypto.publicEncrypt(
+        {
+            key: chavePublica,
+            padding: crypto.constants.RSA_PKCS1_PADDING,
+        },
+        bufferMensagem
+    );
+    return mensagemCriptografada.toString('base64');
+}
+
+botaoLogin.addEventListener("click", async () => {
+    const publicKeyPem = await requisitarTokenDeSessao()
+    console.log(publicKeyPem)
+
+
+
+    const hashSenha = await hash(loginSenha.value)
+    const usuario = { nome: `'${loginUsuario.value}'`, senha: `'${hashSenha}'` };
+
+
+    // Criptografando os dados
+    const encryptedData = await encryptUserData(publicKeyPem, usuario);
+
+    //const encryptedData = await criptografar(usuario, publicKeyPem)
+    console.log('Dados criptografados:', encryptedData);
+
+    doLoginUsuario(encryptedData)
+
     // Requisita token de sessão (get /tokendesessao)
     // Servidor gera um par de chaves pública e privada e coloca em uma lista de sessões ativas
     // Servidor envia a chave pública 
@@ -221,6 +336,30 @@ botaoLogin.addEventListener("click", async ()=>{
     // Envia hash de login e senha (post /login)
     // Servidor retorna nome de usuário 
 
-    
+
 
 });
+
+const btTeste = document.getElementById("botao-testes")
+btTeste.addEventListener('click', async () => {
+
+    // const mensagemTeste = "Teste enviado"
+    const hashSenha = await hash(loginSenha.value)
+    const mensagemTeste = { nome: `'${loginUsuario.value}'`, senha: `'${hashSenha}'` };
+    try {
+        const response = await axios.post(`${URL_BASE}/teste`, mensagemTeste, {
+            headers: {
+                'Content-Type': 'text/plain', // Indica que o corpo é texto simples
+            },
+        }
+        );
+
+
+        // Obtendo os dados do corpo da resposta (body)
+        return await response.data;
+
+    } catch (error) {
+        alert(`Erro logar \r\n${error}`);
+        throw error;
+    }
+})
