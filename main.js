@@ -11,6 +11,7 @@ const loginUsuario = document.getElementById("login__usuario")
 const loginSenha = document.getElementById("login-senha")
 const botaoLogin = document.getElementById("botao-login")
 
+const listaUsuarios = document.getElementById("lista-usuarios")
 
 repeteSenha.onchange = () => {
     if (cadastroSenha.value === repeteSenha.value) {
@@ -170,9 +171,56 @@ botaCadastrar.addEventListener('click', async function (event) {
         alert(`Erro ao salvar usuarios \r\n${error}`);
         throw error;
     }
-    
+});
 
+async function listarUsuarios(){
+    try {
+        const response = await axios.get(`${URL_BASE}/usuarios`)
+        return await response.data
+    } catch (error) {
+        alert(`Erro ao listar usuários \r\n${error}`);
+        throw error;
+    }
+}
+
+
+// Lista usuários ao carregar a página
+document.addEventListener("DOMContentLoaded", async () => {
+    const usuarios = await listarUsuarios()
+    usuarios.forEach(usuario => {
+        listaUsuarios.innerHTML += `<li>[${usuario.nome}][${usuario.cpf}][${usuario.usuario}][${usuario.senha}]</li>`   
+    });
     
 });
 
+async function requisitarTokenDeSessao() {
+    try {
+        const response = await axios.get(`${URL_BASE}/tokendesessao`, {
+            withCredentials: true,  // Isso garante que os cookies e cabeçalhos personalizados sejam enviados
+        });
 
+
+        // Obtendo os dados do corpo da resposta (body)
+        return await response.data;
+        
+    } catch (error) {
+        alert(`Erro ao requisitar token de sessão \r\n${error}`);
+        throw error;
+    }
+}
+
+
+botaoLogin.addEventListener("click", async ()=>{
+    const token = await requisitarTokenDeSessao()
+    
+    // Requisita token de sessão (get /tokendesessao)
+    // Servidor gera um par de chaves pública e privada e coloca em uma lista de sessões ativas
+    // Servidor envia a chave pública 
+    // Informação digitada de senha é transformada em sha256
+    // A informação de login e senha são criptografados com a chave pública
+    // Envia hash de login e senha (post /login)
+    // Servidor retorna nome de usuário 
+
+    
+
+});
