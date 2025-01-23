@@ -12,30 +12,50 @@ app.use(bodyParser.urlencoded({ extended: true })); // Para interpretar dados de
 
 const PORT = 3001;
 
-// 1. Gerar um par de chaves pública e privada
+
+// Gerar um par de chaves RSA-OAEP
 function gerarParDeChaves() {
-    const { publicKey, privateKey } = crypto.generateKeyPairSync('rsa', {
-        modulusLength: 2048, // Tamanho da chave em bits
-        publicKeyEncoding: { type: 'spki', format: 'pem' }, // Formato da chave pública
-        privateKeyEncoding: { type: 'pkcs8', format: 'pem' } // Formato da chave privada
+    return crypto.generateKeyPairSync('rsa', {
+        modulusLength: 2048, // Tamanho da chave
+        publicKeyEncoding: {
+            type: 'spki', // Formato compatível com Web Crypto API
+            format: 'pem',
+        },
+        privateKeyEncoding: {
+            type: 'pkcs8', // Formato compatível com Web Crypto API
+            format: 'pem',
+        },
     });
-    return { publicKey, privateKey };
 }
 
-// 2. Criptografar com a chave pública
+
 function criptografar(mensagem, chavePublica) {
-    const bufferMensagem = Buffer.from(mensagem, 'utf-8'); // Converte a mensagem para buffer
-    const mensagemCriptografada = crypto.publicEncrypt(chavePublica, bufferMensagem); // Criptografa
-    return mensagemCriptografada.toString('base64'); // Retorna em base64
+    const bufferMensagem = Buffer.from(mensagem, 'utf-8');
+    const mensagemCriptografada = crypto.publicEncrypt(
+        {
+            key: chavePublica,
+            padding: crypto.constants.RSA_PKCS1_OAEP_PADDING, // Define o padding OAEP
+            oaepHash: 'sha256', // Define o hash compatível com Web Crypto API
+        },
+        bufferMensagem
+    );
+    return mensagemCriptografada.toString('base64'); // Retorna o resultado em Base64
 }
 
-// 3. Descriptografar com a chave privada
-function descriptografar(mensagemCriptografada, chavePrivada) {
-    console.log(`mensagemCriptografada:\r\n${mensagemCriptografada}\r\nchavePrivada:${chavePrivada}`)
-    const bufferMensagemCriptografada = Buffer.from(mensagemCriptografada, 'base64'); // Converte a mensagem criptografada para buffer
-    const mensagemDescriptografada = crypto.privateDecrypt(chavePrivada, bufferMensagemCriptografada); // Descriptografa
-    return mensagemDescriptografada.toString('utf-8'); // Retorna como string
+
+async function descriptografar(mensagemCriptografada, chavePrivada) {
+    const bufferMensagemCriptografada = Buffer.from(mensagemCriptografada, 'base64');
+    const mensagemDescriptografada = crypto.privateDecrypt(
+        {
+            key: chavePrivada,
+            padding: crypto.constants.RSA_PKCS1_OAEP_PADDING,
+            oaepHash: 'sha256',
+        },
+        bufferMensagemCriptografada
+    );
+    return mensagemDescriptografada.toString('utf-8'); // Converte de volta para string
 }
+
 
 // Middleware para habilitar CORS
 app.use(cors({
@@ -142,18 +162,27 @@ app.get('/tokendesessao', (req, res) => {
     res.send(publicKey);
 });
 
-app.post('/login', (req, res) => {
+
+
+app.post('/login',async (req, res) => {
     const mensagem = JSON.stringify(req.body, null, 2)
     // Serializa e exibe o payload recebido
     console.log(`/login:\n${req.body}`);
     
     // Verifica se o payload é uma string
     if (typeof mensagem === 'string') {
-        try {
+        try { 
             // Descriptografa o dado recebido com a chave privada
             console.log(`${globalPrivateKey}`)
-            const decryptedData = descriptografar(mensagem, globalPrivateKey);
+            const decryptedData = await descriptografar(mensagem, globalPrivateKey);
             console.log('Dado descriptografado:', decryptedData);
+            const loginUser = JSON.parse(decryptedData);
+            console.log(loginUser)
+            console.log(usuarios)
+
+            const usuario = usuarios.find((usr) => (usr.usuario === loginUser.usuario)&&((usr.senha === loginUser.senha)));
+            console.log(usuario)
+            res.send(usuario.nome);
         } catch (error) {
             console.error('Erro ao descriptografar os dados:', error);
         }
@@ -161,8 +190,7 @@ app.post('/login', (req, res) => {
         console.error('Erro: O payload não é uma string.');
     }
 
-    // Retorna o payload recebido como resposta
-    res.send(req.body);
+    
 });
 
 
@@ -171,7 +199,6 @@ app.post('/teste', (req, res) => {
     // Serializa e exibe o payload recebido
     console.log(`Dado recebido (JSON):\n${req.body}`);
     
-    const { publicKey, privateKey } = gerarParDeChaves();
 
     const mensagemTeste = mensagem //"isso é um teste"
 

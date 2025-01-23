@@ -317,7 +317,7 @@ botaoLogin.addEventListener("click", async () => {
 
 
     const hashSenha = await hash(loginSenha.value)
-    const usuario = { nome: `'${loginUsuario.value}'`, senha: `'${hashSenha}'` };
+    const usuario = { usuario: `${loginUsuario.value}`, senha: `${hashSenha}` };
 
 
     // Criptografando os dados
