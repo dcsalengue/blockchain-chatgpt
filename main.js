@@ -1,4 +1,4 @@
-
+import criptografia from "./js/cripto.js";
 
 const URL_BASE = "http://localhost:3001"
 const cadastroNome = document.getElementById('cadastro__nome');
@@ -124,16 +124,6 @@ async function sinalizaCpfValido(valor) {
 
 cadastroCpf.addEventListener('input', aplicarMascaraCPF);
 
-async function hash(string) {
-    const utf8 = new TextEncoder().encode(string);
-    const hashBuffer = await crypto.subtle.digest('SHA-256', utf8);
-    const hashArray = Array.from(new Uint8Array(hashBuffer));
-    const hashHex = hashArray
-        .map((bytes) => bytes.toString(16).padStart(2, '0'))
-        .join('');
-    return hashHex;
-}
-
 // Adiciona validação do formulário para exibir mensagens personalizadas
 
 botaCadastrar.addEventListener('click', async function (event) {
@@ -154,7 +144,7 @@ botaCadastrar.addEventListener('click', async function (event) {
 
     // get um token de chave pública de sessão enviado pelo servidor ao conectar para criptografar os dados 
 
-    const hashSenha = await hash(cadastroSenha.value)
+    const hashSenha = await criptografia.hash(cadastroSenha.value)
     let jsonCadastro =
     {
         "nome": `${cadastroNome.value}`,
@@ -210,73 +200,6 @@ async function requisitarTokenDeSessao() {
         throw error;
     }
 }
-// Função para converter a chave pública PEM em ArrayBuffer
-function pemToArrayBuffer(pem) {
-    const base64 = pem
-        .replace(/-----BEGIN PUBLIC KEY-----/g, '')
-        .replace(/-----END PUBLIC KEY-----/g, '')
-        .replace(/\s+/g, ''); // Remove cabeçalhos, rodapés e espaços em branco
-    const binary = atob(base64); // Decodifica de Base64
-    const len = binary.length;
-    const bytes = new Uint8Array(len);
-    for (let i = 0; i < len; i++) {
-        bytes[i] = binary.charCodeAt(i);
-    }
-    return bytes.buffer;
-}
-
-// Função para importar a chave pública
-async function importPublicKey(pem) {
-    const arrayBuffer = pemToArrayBuffer(pem);
-    return crypto.subtle.importKey(
-        'spki', // Formato SPKI para chaves públicas
-        arrayBuffer,
-        {
-            name: 'RSA-OAEP', // Algoritmo de criptografia
-            hash: { name: 'SHA-256' }, // Hash utilizado
-        },
-        false, // Chave não exportável
-        ['encrypt'] // Usada apenas para criptografia
-    );
-}
-
-// Função para criptografar dados com a chave pública
-async function encryptWithPublicKey(publicKey, data) {
-    const encoder = new TextEncoder(); // Codifica dados para ArrayBuffer
-    const encodedData = encoder.encode(JSON.stringify(data)); // Converte para JSON e codifica
-    const encryptedData = await crypto.subtle.encrypt(
-        {
-            name: 'RSA-OAEP',
-        },
-        publicKey,
-        encodedData
-    );
-    return encryptedData; // Retorna um ArrayBuffer com os dados criptografados
-}
-
-async function encryptUserData(publicKeyPem, userData) {
-    try {
-        // Importar a chave pública
-        const publicKey = await importPublicKey(publicKeyPem);
-
-        // Criptografar os dados do usuário
-        const encryptedData = await encryptWithPublicKey(publicKey, userData);
-
-        // Converter os dados criptografados para Base64 para envio ao servidor
-        const encryptedBase64 = btoa(
-            String.fromCharCode(...new Uint8Array(encryptedData))
-        );
-
-        // Retorna os dados criptografados em Base64
-        return encryptedBase64;
-    } catch (error) {
-        console.error('Erro ao criptografar os dados:', error);
-        throw error; // Repassa o erro para ser tratado externamente
-    }
-}
-
-
-
 
 async function doLoginUsuario(loginEncriptado) {
     try {
@@ -295,33 +218,18 @@ async function doLoginUsuario(loginEncriptado) {
         throw error;
     }
 }
-
-// Função de Criptografia
-function criptografar(mensagem, chavePublica) {
-    const crypto = window.cryptoBrowserify;
-    const bufferMensagem = Buffer.from(mensagem, 'utf-8');
-    const mensagemCriptografada = crypto.publicEncrypt(
-        {
-            key: chavePublica,
-            padding: crypto.constants.RSA_PKCS1_PADDING,
-        },
-        bufferMensagem
-    );
-    return mensagemCriptografada.toString('base64');
-}
-
 botaoLogin.addEventListener("click", async () => {
     const publicKeyPem = await requisitarTokenDeSessao()
     console.log(publicKeyPem)
 
 
 
-    const hashSenha = await hash(loginSenha.value)
+    const hashSenha = await criptografia.hash(loginSenha.value)
     const usuario = { usuario: `${loginUsuario.value}`, senha: `${hashSenha}` };
 
 
     // Criptografando os dados
-    const encryptedData = await encryptUserData(publicKeyPem, usuario);
+    const encryptedData = await criptografia.encryptUserData(publicKeyPem, usuario);
 
     //const encryptedData = await criptografar(usuario, publicKeyPem)
     console.log('Dados criptografados:', encryptedData);
