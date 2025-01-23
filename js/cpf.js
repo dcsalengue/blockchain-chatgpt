@@ -1,24 +1,22 @@
 const cpf = {
     
 
-    async sinalizaCpfValido(valor) {
-        // const cadastroCpf = document.getElementById('cadastro__cpf');
-
+     async sinalizaCpfValido(valor, target) {
         if (valor.length < 14) { // Ainda não completamente preenchido
-            cadastroCpf.style.background = "white"
-            cadastroCpf.style.color = "black"
+            target.style.background = "white"
+            target.style.color = "black"
             console.log(`input valor.length < 14`)
         }
-        else if (validarCPF(valor)) {
+        else if (cpf.validarCPF(valor)) {
             console.log(`CPF válido`)
-            cadastroCpf.style.background = "#7bc27b"
+            target.style.background = "#7bc27b"
         }
         else { //Preenchido e inválido
             console.log(`CPF inválido`)
-            cadastroCpf.style.background = "#f14747"
-            cadastroCpf.style.color = "white"
+            target.style.background = "#f14747"
+            target.style.color = "white"
         }
-        console.log(`sinalizaCpfValido ${cadastroCpf.style.background}`)
+        console.log(`sinalizaCpfValido ${target.style.background}`)
 
     },
 
@@ -26,26 +24,27 @@ const cpf = {
     async aplicarMascaraCPF(event) {
 
         console.log(event)
-        let cpf = event.target.value;
+        let inputCpf = event.target.value;
 
         // Remove qualquer caractere que não seja número
-        cpf = cpf.replace(/\D/g, '');
+        inputCpf = inputCpf.replace(/\D/g, '');
 
         // Adiciona a máscara: 000.000.000-00
-        if (cpf.length > 3) {
-            cpf = cpf.replace(/(\d{3})(\d)/, '$1.$2');
+        if (inputCpf.length > 3) {
+            inputCpf = inputCpf.replace(/(\d{3})(\d)/, '$1.$2');
         }
-        if (cpf.length > 6) {
-            cpf = cpf.replace(/(\d{3})\.(\d{3})(\d)/, '$1.$2.$3');
+        if (inputCpf.length > 6) {
+            inputCpf = inputCpf.replace(/(\d{3})\.(\d{3})(\d)/, '$1.$2.$3');
         }
-        if (cpf.length > 9) {
-            cpf = cpf.replace(/(\d{3})\.(\d{3})\.(\d{3})(\d)/, '$1.$2.$3-$4');
+        if (inputCpf.length > 9) {
+            inputCpf = inputCpf.replace(/(\d{3})\.(\d{3})\.(\d{3})(\d)/, '$1.$2.$3-$4');
         }
 
         // Atualiza o valor do input com a máscara
-        event.target.value = cpf;
-        console.log('input')
-        await cpf.sinalizaCpfValido(cpf);
+        event.target.value = inputCpf;
+        console.log(`${inputCpf}`)
+        
+         await cpf.sinalizaCpfValido(inputCpf, event.target);
     },
 
     validarCPF(cpfComMascara) {
