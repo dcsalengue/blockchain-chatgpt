@@ -2,7 +2,8 @@ const express = require('express');
 const bodyParser = require('body-parser');
 const cors = require('cors');
 const crypto = require('crypto');
-
+const fs = require('fs');
+const path = require('path');
 
 const app = express();
 app.use(bodyParser.json()); // Para interpretar JSON
@@ -12,6 +13,65 @@ app.use(bodyParser.urlencoded({ extended: true })); // Para interpretar dados de
 
 const PORT = 3001;
 
+
+// Caminho do arquivo
+const bdUsuarios = path.join(__dirname, 'usuarios.json');
+
+// Função para criar ou abrir o arquivo, ler e escrever no final
+function appendToFileJson(filePath, content) {
+  // Garantir que o arquivo existe
+  if (!fs.existsSync(filePath)) {
+    fs.writeFileSync(filePath, '', 'utf-8'); // Cria o arquivo vazio
+    fs.appendFileSync(filePath, `[\n],`, 'utf-8');
+    console.log('Arquivo criado!');
+  }
+
+  // Ler o conteúdo atual do arquivo
+  const data = fs.readFileSync(filePath, 'utf-8');
+  const dataBuffer =  data.split('\n')
+  console.log('Conteúdo atual do arquivo:', data);
+
+  // Escrever no final do arquivo
+  fs.appendFileSync(filePath, `\n${content},`, 'utf-8');
+  console.log('Conteúdo adicionado ao arquivo!');
+}
+
+// Função para manipular o arquivo
+function formatJsonFile(filePath, newContent) {
+    // Certifique-se de que o arquivo existe
+    if (!fs.existsSync(filePath)) {
+      fs.writeFileSync(filePath, '[]', 'utf-8'); // Cria um arquivo vazio com []
+      console.log('Arquivo criado com []');
+    }
+  
+    // Ler o conteúdo atual do arquivo
+    let data = fs.readFileSync(filePath, 'utf-8').trim();
+  
+    // Remover `]` no final, se existir
+    if (data.endsWith(']')) {
+      data = data.slice(0, -1).trim();
+    }
+  
+    // Garantir que o conteúdo seja válido
+    if (!data.startsWith('[')) {
+      data = `[${data}`;
+    }
+  
+    // Adicionar vírgula no final do último item, se necessário
+    if (data[data.length - 1] === '}') {
+      data += ',';
+    }
+  
+    // Adicionar novo conteúdo ao arquivo
+    data += `\n${newContent}`;
+  
+    // Fechar o array com `]`
+    data += '\n]';
+  
+    // Escrever no arquivo
+    fs.writeFileSync(filePath, data, 'utf-8');
+    console.log('Arquivo atualizado com sucesso!');
+  }
 
 // Gerar um par de chaves RSA-OAEP
 function gerarParDeChaves() {
@@ -81,6 +141,7 @@ app.post('/usuarios', (req, res) => {
     }
 
     usuarios.push({ nome, cpf, usuario, senha });
+    formatJsonFile(bdUsuarios, JSON.stringify(req.body))
     res.status(201).json({ message: 'Usuário criado com sucesso!', usuario: { nome, cpf, usuario, senha } });
 });
 
