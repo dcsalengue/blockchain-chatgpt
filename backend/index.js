@@ -1,9 +1,14 @@
-const express = require('express');
-const bodyParser = require('body-parser');
-const cors = require('cors');
-const crypto = require('crypto');
-const fs = require('fs');
-const path = require('path');
+import express from 'express';
+import bodyParser from 'body-parser';
+import cors from 'cors';
+import fs from 'fs';
+import { fileURLToPath } from 'url';
+import path from 'path';
+
+const __filename = fileURLToPath(import.meta.url);
+const __dirname = path.dirname(__filename);
+
+import cripto from './criptografia.js';
 
 let arquivoUsuarios = [];  // array json do arquivo de usuários
 
@@ -19,105 +24,19 @@ const PORT = 3001;
 // Caminho do arquivo
 const bdUsuarios = path.join(__dirname, 'usuarios.json');
 
-// Função para criar ou abrir o arquivo, ler e escrever no final
-function appendToFileJson(filePath, content) {
-  // Garantir que o arquivo existe
-  if (!fs.existsSync(filePath)) {
-    fs.writeFileSync(filePath, '', 'utf-8'); // Cria o arquivo vazio
-    fs.appendFileSync(filePath, `[\n],`, 'utf-8');
-    console.log('Arquivo criado!');
-  }
-
-  // Ler o conteúdo atual do arquivo
-  arquivoUsuarios = fs.readFileSync(filePath, 'utf-8');
-  const dataBuffer =  data.split('\n')
-  console.log('Conteúdo atual do arquivo:', arquivoUsuarios);
-
-  // Escrever no final do arquivo
-  fs.appendFileSync(filePath, `\n${content},`, 'utf-8');
-  console.log('Conteúdo adicionado ao arquivo!');
+function refreshUsuarios() {
+    const data = fs.readFileSync(bdUsuarios, 'utf-8');
+    arquivoUsuarios = JSON.parse(data)
 }
 
-// Função para manipular o arquivo
-function formatJsonFile(filePath, newContent) {
-    // Certifique-se de que o arquivo existe
-    if (!fs.existsSync(filePath)) {
-      fs.writeFileSync(filePath, '[]', 'utf-8'); // Cria um arquivo vazio com []
-      console.log('Arquivo criado com []');
+function updateJsonFile(filePath, newContent) {
+    let data = [];
+    if (fs.existsSync(filePath)) {
+        data = JSON.parse(fs.readFileSync(filePath, 'utf-8'));
     }
-  
-    // Ler o conteúdo atual do arquivo
-    let data = fs.readFileSync(filePath, 'utf-8').trim();
-  
-    // Remover `]` no final, se existir
-    if (data.endsWith(']')) {
-      data = data.slice(0, -1).trim();
-    }
-  
-    // Garantir que o conteúdo seja válido
-    if (!data.startsWith('[')) {
-      data = `[${data}`;
-    }
-  
-    // Adicionar vírgula no final do último item, se necessário
-    if (data[data.length - 1] === '}') {
-      data += ',';
-    }
-  
-    // Adicionar novo conteúdo ao arquivo
-    data += `\n${newContent}`;
-  
-    // Fechar o array com `]`
-    data += '\n]';
-  
-    // Escrever no arquivo
-    fs.writeFileSync(filePath, data, 'utf-8');
-    console.log('Arquivo atualizado com sucesso!');
-  }
-
-// Gerar um par de chaves RSA-OAEP
-function gerarParDeChaves() {
-    return crypto.generateKeyPairSync('rsa', {
-        modulusLength: 2048, // Tamanho da chave
-        publicKeyEncoding: {
-            type: 'spki', // Formato compatível com Web Crypto API
-            format: 'pem',
-        },
-        privateKeyEncoding: {
-            type: 'pkcs8', // Formato compatível com Web Crypto API
-            format: 'pem',
-        },
-    });
+    data.push(newContent);
+    fs.writeFileSync(filePath, JSON.stringify(data, null, 2), 'utf-8');
 }
-
-
-function criptografar(mensagem, chavePublica) {
-    const bufferMensagem = Buffer.from(mensagem, 'utf-8');
-    const mensagemCriptografada = crypto.publicEncrypt(
-        {
-            key: chavePublica,
-            padding: crypto.constants.RSA_PKCS1_OAEP_PADDING, // Define o padding OAEP
-            oaepHash: 'sha256', // Define o hash compatível com Web Crypto API
-        },
-        bufferMensagem
-    );
-    return mensagemCriptografada.toString('base64'); // Retorna o resultado em Base64
-}
-
-
-async function descriptografar(mensagemCriptografada, chavePrivada) {
-    const bufferMensagemCriptografada = Buffer.from(mensagemCriptografada, 'base64');
-    const mensagemDescriptografada = crypto.privateDecrypt(
-        {
-            key: chavePrivada,
-            padding: crypto.constants.RSA_PKCS1_OAEP_PADDING,
-            oaepHash: 'sha256',
-        },
-        bufferMensagemCriptografada
-    );
-    return mensagemDescriptografada.toString('utf-8'); // Converte de volta para string
-}
-
 
 // Middleware para habilitar CORS
 app.use(cors({
@@ -133,10 +52,6 @@ app.use(express.json());
 // Base de dados em memória (simulação)
 
 
-function refreshUsuarios(){
-    data = fs.readFileSync(bdUsuarios, 'utf-8');
-    arquivoUsuarios = JSON.parse(data)
-}
 
 // Rota para criar um novo usuário (CREATE)
 app.post('/usuarios', (req, res) => {
@@ -147,8 +62,7 @@ app.post('/usuarios', (req, res) => {
         return res.status(400).json({ error: 'Usuário com este ID já existe!' });
     }
 
-   // usuarios.push({ nome, cpf, usuario, senha });
-    formatJsonFile(bdUsuarios, JSON.stringify(req.body))
+    updateJsonFile(bdUsuarios, req.body);
     refreshUsuarios()
     res.status(201).json({ message: 'Usuário criado com sucesso!', usuario: { nome, cpf, usuario, senha } });
 });
@@ -200,24 +114,13 @@ app.delete('/usuarios/:cpf', (req, res) => {
     res.json({ message: 'Usuário excluído com sucesso!' });
 });
 
-function removeKeyHeaders(key) {
-    // Remove as linhas de início e fim, e também espaços em branco extras
-    return key
-        .replace('-----BEGIN PRIVATE KEY-----', '') // Remove a linha de início
-        .replace('-----END PRIVATE KEY-----', '')   // Remove a linha de fim
-        .replace('-----BEGIN PUBLIC KEY-----', '') // Remove a linha de início
-        .replace('-----END PUBLIC KEY-----', '')   // Remove a linha de fim
-        .replace(/[\n\r]/g, '')              // Remove quebras de linha
-        .trim();                                    // Remove espaços em branco extras
-}
-
 let globalPublicKey
 let globalPrivateKey
 // Rota para obter um usuário específico pelo ID (READ)
 app.get('/tokendesessao', (req, res) => {
     console.log('tokendesessao');
 
-    const { publicKey, privateKey } = gerarParDeChaves();
+    const { publicKey, privateKey } = cripto.gerarParDeChaves();
 
     globalPublicKey = publicKey
     globalPrivateKey = privateKey
@@ -225,43 +128,46 @@ app.get('/tokendesessao', (req, res) => {
 
     console.log(`${globalPublicKey}`)
     console.log(`${globalPrivateKey}`)
-    // const publicKeyStripped = removeKeyHeaders(publicKey);
-    // const privateKeyStripped = removeKeyHeaders(privateKey);
 
- 
+
     res.send(publicKey);
 });
 
 
 
-app.post('/login',async (req, res) => {
+app.post('/login', async (req, res) => {
     const mensagem = JSON.stringify(req.body, null, 2)
     // Serializa e exibe o payload recebido
     console.log(`/login:\n${req.body}`);
-    
+
     // Verifica se o payload é uma string
     if (typeof mensagem === 'string') {
-        try { 
+        try {
             // Descriptografa o dado recebido com a chave privada
             console.log(`${globalPrivateKey}`)
-            const decryptedData = await descriptografar(mensagem, globalPrivateKey);
+            const decryptedData = await cripto.descriptografar(mensagem, globalPrivateKey);
             console.log('Dado descriptografado:', decryptedData);
             const loginUser = JSON.parse(decryptedData);
             console.log(loginUser)
             // let usuarios = JSON.parse( fs.readFile('./usuarios.json', 'utf8'));
             // console.log(usuarios)
 
-            const usuario = arquivoUsuarios.find((usr) => (usr.usuario === loginUser.usuario)&&((usr.senha === loginUser.senha)));
+            const usuario = arquivoUsuarios.find((usr) => (usr.usuario === loginUser.usuario) && ((usr.senha === loginUser.senha)));
             console.log(usuario)
+
+            if (!usuario) {
+                return res.status(401).json({ error: 'Usuário ou senha inválidos!' });
+            }
             res.send(usuario.nome);
         } catch (error) {
             console.error('Erro ao descriptografar os dados:', error);
+            res.status(500).json({ error: 'Erro interno no servidor!' });
         }
     } else {
         console.error('Erro: O payload não é uma string.');
     }
 
-    
+
 });
 
 
@@ -269,15 +175,15 @@ app.post('/teste', (req, res) => {
     const mensagem = JSON.stringify(req.body, null, 2)
     // Serializa e exibe o payload recebido
     console.log(`Dado recebido (JSON):\n${req.body}`);
-    
+
 
     const mensagemTeste = mensagem //"isso é um teste"
 
     console.log(`criptografar: ${mensagemTeste} ${publicKey}\r\n`);
-    const mensagemCriptografada = criptografar(mensagemTeste, globalPublicKey)
+    const mensagemCriptografada = cripto.criptografar(mensagemTeste, globalPublicKey)
 
     console.log(`mensagemCriptografada: ${mensagemCriptografada}\r\n`);
-    const mensagemDescriptografada = descriptografar(mensagemCriptografada, globalPrivateKey)
+    const mensagemDescriptografada = cripto.descriptografar(mensagemCriptografada, globalPrivateKey)
     console.log(`mensagemDescriptografada: ${mensagemDescriptografada}\r\n`);
     res.send(mensagemDescriptografada);
 });
