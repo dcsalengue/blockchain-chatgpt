@@ -5,6 +5,8 @@ const crypto = require('crypto');
 const fs = require('fs');
 const path = require('path');
 
+let arquivoUsuarios = [];  // array json do arquivo de usuários
+
 const app = express();
 app.use(bodyParser.json()); // Para interpretar JSON
 app.use(bodyParser.text()); // Adicionado para aceitar payloads como texto
@@ -27,9 +29,9 @@ function appendToFileJson(filePath, content) {
   }
 
   // Ler o conteúdo atual do arquivo
-  const data = fs.readFileSync(filePath, 'utf-8');
+  arquivoUsuarios = fs.readFileSync(filePath, 'utf-8');
   const dataBuffer =  data.split('\n')
-  console.log('Conteúdo atual do arquivo:', data);
+  console.log('Conteúdo atual do arquivo:', arquivoUsuarios);
 
   // Escrever no final do arquivo
   fs.appendFileSync(filePath, `\n${content},`, 'utf-8');
@@ -129,31 +131,38 @@ app.use(cors({
 app.use(express.json());
 
 // Base de dados em memória (simulação)
-let usuarios = [];
+
+
+function refreshUsuarios(){
+    data = fs.readFileSync(bdUsuarios, 'utf-8');
+    arquivoUsuarios = JSON.parse(data)
+}
 
 // Rota para criar um novo usuário (CREATE)
 app.post('/usuarios', (req, res) => {
     const { nome, cpf, usuario, senha } = req.body;
 
     // Verifica se o ID já existe
-    if (usuarios.find(usuario => usuario.cpf === cpf)) {
+    if (arquivoUsuarios.find(usuario => usuario.cpf === cpf)) {
         return res.status(400).json({ error: 'Usuário com este ID já existe!' });
     }
 
-    usuarios.push({ nome, cpf, usuario, senha });
+   // usuarios.push({ nome, cpf, usuario, senha });
     formatJsonFile(bdUsuarios, JSON.stringify(req.body))
+    refreshUsuarios()
     res.status(201).json({ message: 'Usuário criado com sucesso!', usuario: { nome, cpf, usuario, senha } });
 });
 
 // Rota para listar todos os usuários (READ)
 app.get('/usuarios', (req, res) => {
-    res.json(usuarios);
+    refreshUsuarios()
+    res.json(arquivoUsuarios);
 });
 
 // Rota para obter um usuário específico pelo ID (READ)
 app.get('/usuarios/:cpf', (req, res) => {
     const { cpf } = req.params;
-    const usuario = usuarios.find(usuario => usuario.cpf === parseInt(cpf));
+    const usuario = arquivoUsuarios.find(usuario => usuario.cpf === parseInt(cpf));
 
     if (!usuario) {
         return res.status(404).json({ error: 'Usuário não encontrado!' });
@@ -167,27 +176,27 @@ app.put('/usuarios/:cpf', (req, res) => {
     const { cpf } = req.params;
     const { nome, usuario, senha } = req.body;
 
-    const usuarioIndex = usuarios.findIndex(usuario => usuario.cpf === parseInt(cpf));
+    const usuarioIndex = arquivoUsuarios.findIndex(usuario => usuario.cpf === parseInt(cpf));
 
     if (usuarioIndex === -1) {
         return res.status(404).json({ error: 'Usuário não encontrado!' });
     }
 
     // Atualiza o usuário
-    usuarios[usuarioIndex] = { cpf: parseInt(cpf), nome, usuario, senha };
-    res.json({ message: 'Usuário atualizado com sucesso!', usuario: usuarios[usuarioIndex] });
+    arquivoUsuarios[usuarioIndex] = { cpf: parseInt(cpf), nome, usuario, senha };
+    res.json({ message: 'Usuário atualizado com sucesso!', usuario: arquivoUsuarios[usuarioIndex] });
 });
 
 // Rota para excluir um usuário pelo ID (DELETE)
 app.delete('/usuarios/:cpf', (req, res) => {
     const { cpf } = req.params;
-    const usuarioIndex = usuarios.findIndex(usuario => usuario.cpf === parseInt(cpf));
+    const usuarioIndex = arquivoUsuarios.findIndex(usuario => usuario.cpf === parseInt(cpf));
 
     if (usuarioIndex === -1) {
         return res.status(404).json({ error: 'Usuário não encontrado!' });
     }
 
-    usuarios.splice(usuarioIndex, 1);
+    arquivoUsuarios.splice(usuarioIndex, 1);
     res.json({ message: 'Usuário excluído com sucesso!' });
 });
 
@@ -239,9 +248,10 @@ app.post('/login',async (req, res) => {
             console.log('Dado descriptografado:', decryptedData);
             const loginUser = JSON.parse(decryptedData);
             console.log(loginUser)
-            console.log(usuarios)
+            // let usuarios = JSON.parse( fs.readFile('./usuarios.json', 'utf8'));
+            // console.log(usuarios)
 
-            const usuario = usuarios.find((usr) => (usr.usuario === loginUser.usuario)&&((usr.senha === loginUser.senha)));
+            const usuario = arquivoUsuarios.find((usr) => (usr.usuario === loginUser.usuario)&&((usr.senha === loginUser.senha)));
             console.log(usuario)
             res.send(usuario.nome);
         } catch (error) {
