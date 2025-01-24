@@ -2,25 +2,13 @@
   {
     "nome": "Diego Caldas Salengue",
     "cpf": "755.256.660-49",
-    "usuario": "dcsalengue",
+    "usuario": "dcsal",
     "senha": "03ac674216f3e15c761ee1a5e255f067953623c8b388b4459e13f978d7c846f4"
   },
   {
-    "nome": "João da Silva",
-    "cpf": "680.758.455-52",
-    "usuario": "jao",
-    "senha": "03ac674216f3e15c761ee1a5e255f067953623c8b388b4459e13f978d7c846f4"
-  },
-  {
-    "nome": "Magda",
-    "cpf": "015.145.440-08",
-    "usuario": "magda",
-    "senha": "03ac674216f3e15c761ee1a5e255f067953623c8b388b4459e13f978d7c846f4"
-  },
-  {
-    "nome": "Maria",
-    "cpf": "302.038.240-83",
-    "usuario": "maria",
+    "nome": "Joe Doe",
+    "cpf": "102.218.623-07",
+    "usuario": "joe",
     "senha": "03ac674216f3e15c761ee1a5e255f067953623c8b388b4459e13f978d7c846f4"
   }
 ]
