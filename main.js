@@ -1,5 +1,6 @@
 import criptografia from "./js/cripto.js";
 import cpf from "./js/cpf.js";
+import api from "./js/api.js";
 
 const URL_BASE = "http://localhost:3001"
 const cadastroNome = document.getElementById('cadastro__nome');
@@ -30,7 +31,6 @@ repeteSenha.onchange = () => {
 }
 
 // Seleciona o campo de CPF e aplica a máscara ao digitar
-
 cadastroCpf.addEventListener('input', cpf.aplicarMascaraCPF);
 
 // Adiciona validação do formulário para exibir mensagens personalizadas
@@ -50,92 +50,25 @@ botaCadastrar.addEventListener('click', async function (event) {
         alert('Senhas precisam ser idênticas.');
         return
     }
-
-    // get um token de chave pública de sessão enviado pelo servidor ao conectar para criptografar os dados 
-
-    const hashSenha = await criptografia.hash(cadastroSenha.value)
-    let jsonCadastro =
-    {
-        "nome": `${cadastroNome.value}`,
-        "cpf": `${cadastroCpf.value}`,
-        "usuario": `${cadastroUsuario.value}`,
-        "senha": `${hashSenha}`
-    }
-
-
-    console.log(JSON.stringify(jsonCadastro))
-
-    try {
-        const response = await axios.post(`${URL_BASE}/usuarios`, jsonCadastro)
-        return await response.data
-    } catch (error) {
-        alert(`Erro ao salvar usuarios \r\n${error}`);
-        throw error;
-    }
+    console.log("CPF válido, senha confirmada")
+    
+    await api.cadastrarUsuario(cadastroNome.value, cadastroCpf.value, cadastroUsuario.value, cadastroSenha.value)
+    
 });
-
-async function listarUsuarios() {
-    try {
-        const response = await axios.get(`${URL_BASE}/usuarios`)
-        return await response.data
-    } catch (error) {
-        alert(`Erro ao listar usuários \r\n${error}`);
-        throw error;
-    }
-}
-
 
 // Lista usuários ao carregar a página
 document.addEventListener("DOMContentLoaded", async () => {
-    const usuarios = await listarUsuarios()
+    const usuarios = await api.listarUsuarios()
     usuarios.forEach(usuario => {
         listaUsuarios.innerHTML += `<li>[${usuario.nome}][${usuario.cpf}][${usuario.usuario}][${usuario.senha}]</li>`
     });
 
 });
-
-async function requisitarTokenDeSessao() {
-    try {
-        const response = await axios.get(`${URL_BASE}/tokendesessao`, {
-            withCredentials: true,  // Isso garante que os cookies e cabeçalhos personalizados sejam enviados
-        });
-
-
-        // Obtendo os dados do corpo da resposta (body)
-        return await response.data;
-
-    } catch (error) {
-        alert(`Erro ao requisitar token de sessão \r\n${error}`);
-        throw error;
-    }
-}
-
-async function doLoginUsuario(loginEncriptado) {
-    try {
-        const response = await axios.post(`${URL_BASE}/login`, loginEncriptado, {
-            headers: {
-                'Content-Type': 'text/plain', // Indica que o corpo é texto simples
-            },
-        });
-
-
-        // Obtendo os dados do corpo da resposta (body)
-        return await response.data;
-
-    } catch (error) {
-        alert(`Erro logar \r\n${error}`);
-        throw error;
-    }
-}
 botaoLogin.addEventListener("click", async () => {
-    const publicKeyPem = await requisitarTokenDeSessao()
-    console.log(publicKeyPem)
-
-
+    const publicKeyPem = await api.requisitarTokenDeSessao()
 
     const hashSenha = await criptografia.hash(loginSenha.value)
     const usuario = { usuario: `${loginUsuario.value}`, senha: `${hashSenha}` };
-
 
     // Criptografando os dados
     const encryptedData = await criptografia.encryptUserData(publicKeyPem, usuario);
@@ -143,7 +76,7 @@ botaoLogin.addEventListener("click", async () => {
     //const encryptedData = await criptografar(usuario, publicKeyPem)
     console.log('Dados criptografados:', encryptedData);
 
-    doLoginUsuario(encryptedData)
+    api.loginUsuario(encryptedData)
 
     // Requisita token de sessão (get /tokendesessao)
     // Servidor gera um par de chaves pública e privada e coloca em uma lista de sessões ativas
@@ -152,8 +85,6 @@ botaoLogin.addEventListener("click", async () => {
     // A informação de login e senha são criptografados com a chave pública
     // Envia hash de login e senha (post /login)
     // Servidor retorna nome de usuário 
-
-
 
 });
 

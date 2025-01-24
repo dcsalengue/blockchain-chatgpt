@@ -1,5 +1,7 @@
-const URL_BASE = "http://localhost:3001"
 // Colocar aqui as funções de comunicação com o backend
+import criptografia from "./cripto.js";
+
+const URL_BASE = "http://localhost:3001"
 
 const api = {
     async listarUsuarios() {
@@ -12,8 +14,30 @@ const api = {
         }
     },
 
+    async cadastrarUsuario(nome, cpf, usuario, senha) {
+        // get um token de chave pública de sessão enviado pelo servidor ao conectar para criptografar os dados 
+        const hashSenha = await criptografia.hash(senha)
+        let jsonCadastro =
+        {
+            "nome": `${nome}`,
+            "cpf": `${cpf}`,
+            "usuario": `${usuario}`,
+            "senha": `${hashSenha}`
+        }
 
-    async doLoginUsuario(loginEncriptado) {
+
+        console.log(JSON.stringify(jsonCadastro))
+
+        try {
+            const response = await axios.post(`${URL_BASE}/usuarios`, jsonCadastro)
+            return await response.data
+        } catch (error) {
+            alert(`Erro ao salvar usuarios \r\n${error}`);
+            throw error;
+        }
+    },
+
+    async loginUsuario(loginEncriptado) {
         try {
             const response = await axios.post(`${URL_BASE}/login`, loginEncriptado, {
                 headers: {
@@ -27,16 +51,6 @@ const api = {
 
         } catch (error) {
             alert(`Erro logar \r\n${error}`);
-            throw error;
-        }
-    },
-
-    async cadastrarUsuario(jsonCadastro) {
-        try {
-            const response = await axios.post(`${URL_BASE}/usuarios`, jsonCadastro)
-            return await response.data
-        } catch (error) {
-            alert(`Erro ao salvar usuarios \r\n${error}`);
             throw error;
         }
     },
@@ -57,4 +71,4 @@ const api = {
         }
     },
 }
-    export default api;
+export default api;
