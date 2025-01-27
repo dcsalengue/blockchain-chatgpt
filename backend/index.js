@@ -5,6 +5,10 @@ import cors from 'cors';
 import cripto from './criptografia.js';
 import trataArquivos from './trataArquivos.js';
 
+import { v4 as uuidv4 } from 'uuid';
+
+
+
 const app = express();
 app.use(bodyParser.json()); // Para interpretar JSON
 app.use(bodyParser.text()); // Adicionado para aceitar payloads como texto
@@ -23,23 +27,12 @@ app.use(cors({
 // Middleware para lidar com JSON no corpo da requisição
 app.use(express.json());
 
-// Rota para criar um novo usuário (CREATE)
-app.post('/usuarios', (req, res) => {
-    const { nome, cpf, usuario, senha } = req.body;
 
-    // Verifica se o ID já existe
-    if (trataArquivos.arquivoUsuarios.find(usuario => usuario.cpf === cpf)) {
-        return res.status(400).json({ error: 'Usuário com este ID já existe!' });
-    }
-
-    trataArquivos.updateJsonFile(req.body);
-    trataArquivos.refreshUsuarios()
-    res.status(201).json({ message: 'Usuário criado com sucesso!', usuario: { nome, cpf, usuario, senha } });
-});
 
 // Rota para listar todos os usuários (READ)
 app.get('/usuarios', (req, res) => {
     trataArquivos.refreshUsuarios()
+    console.log(`ln  35 - ${trataArquivos.arquivoUsuarios}`)
     res.json(trataArquivos.arquivoUsuarios);
 });
 
@@ -83,17 +76,66 @@ app.delete('/usuarios/:cpf', (req, res) => {
     trataArquivos.arquivoUsuarios.splice(usuarioIndex, 1);
     res.json({ message: 'Usuário excluído com sucesso!' });
 });
-// Isso precisa ser alterado, vinculado ao usuário
-let globalPublicKey
-let globalPrivateKey
+// // Isso precisa ser alterado, vinculado ao usuário
+// let globalPublicKey
+// let globalPrivateKey
+
+// Usar algum meio de excluir as sessões mais antigas de tempos em tempos caso não sejam usadas 
+let globalKeys = {}; // Para armazenar pares de chaves para sessões específicas
+
 // Rota para obter um usuário específico pelo ID (READ)
 app.get('/tokendesessao', (req, res) => {
     const { publicKey, privateKey } = cripto.gerarParDeChaves();
+    const sessionId = uuidv4(); // Gera identificador único para a sessão
 
-    globalPublicKey = publicKey
-    globalPrivateKey = privateKey
-    res.send(publicKey);
+    // Salva as chaves na memória (pode ser aprimorado para persistência segura)
+    globalKeys[sessionId] = { publicKey, privateKey };
+
+    // Envia a chave pública e o ID da sessão ao cliente
+    res.json({ publicKey, sessionId });
 });
+
+// Rota para criar um novo usuário (CREATE)
+app.post('/usuarios', async (req, res) => {
+    try {
+        const { data, sessionId } = req.body;
+
+        // Verifica se a sessão é válida
+        if (!globalKeys[sessionId]) {
+            return res.status(400).json({ error: 'Sessão inválida ou expirou.' });
+        }
+
+        const privateKey = globalKeys[sessionId].privateKey;
+        const decryptedData = await cripto.descriptografar(data, privateKey);
+
+        // Converte os dados descriptografados de volta para JSON
+        const { nome, cpf, usuario, senha } = JSON.parse(decryptedData);
+
+        // Garante que os usuários estão sendo carregados corretamente
+        let users = [];
+        if (Array.isArray(trataArquivos.arquivoUsuarios)) {
+            users = trataArquivos.arquivoUsuarios;
+        } else if (typeof trataArquivos.arquivoUsuarios === 'string') {
+            users = JSON.parse(trataArquivos.arquivoUsuarios);
+        }
+
+        // Verifica se o CPF já existe
+        if (users.find(u => u.cpf === cpf)) {
+            return res.status(400).json({ error: 'Usuário com este CPF já existe!' });
+        }
+
+        // Adiciona o novo usuário e atualiza o arquivo JSON
+        const newUser = { nome, cpf, usuario, senha };
+        trataArquivos.updateJsonFile(newUser);
+        trataArquivos.refreshUsuarios();
+
+        res.status(201).json({ message: 'Usuário criado com sucesso!', usuario: newUser });
+    } catch (error) {
+        console.error('Erro ao criar usuário:', error);
+        res.status(500).json({ error: 'Erro ao criar usuário. Verifique os dados enviados.' });
+    }
+});
+
 
 
 
@@ -148,3 +190,11 @@ app.post('/teste', (req, res) => {
 app.listen(PORT, () => {
     console.log(`Servidor rodando em http://localhost:${PORT}`);
 });
+
+
+
+
+
+
+
+

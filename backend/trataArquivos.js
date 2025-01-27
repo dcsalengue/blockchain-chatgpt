@@ -14,13 +14,15 @@ const trataArquivos = {
     refreshUsuarios() {
         if (fs.existsSync(this.bdUsuarios)) {
             const data = fs.readFileSync(this.bdUsuarios, 'utf-8'); // 'this' para acessar bdUsuarios
-            this.arquivoUsuarios = JSON.parse(data);
+        //    console.log(data)
+            this.arquivoUsuarios = data;
         }
 
     },
 
     // Adiciona um novo conteúdo ao arquivo JSON
     updateJsonFile(newContent) {
+        // console.log(newContent)
         let data = [];
         if (fs.existsSync(this.bdUsuarios)) {
             data = JSON.parse(fs.readFileSync(this.bdUsuarios, 'utf-8'));

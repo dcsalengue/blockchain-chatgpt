@@ -8,7 +8,6 @@ const cadastroCpf = document.getElementById('cadastro__cpf');
 const cadastroUsuario = document.getElementById('cadastro__usuario');
 const cadastroSenha = document.getElementById('cadastro__senha');
 const repeteSenha = document.getElementById('repete-senha');
-const form = document.getElementById('form-cadastro-usuario');
 const botaCadastrar = document.getElementById('botao-cadastrar');
 
 const loginUsuario = document.getElementById("login__usuario")
@@ -36,29 +35,39 @@ cadastroCpf.addEventListener('input', cpf.aplicarMascaraCPF);
 // Adiciona validação do formulário para exibir mensagens personalizadas
 
 botaCadastrar.addEventListener('click', async function (event) {
-    const validaSenha = cadastroSenha.getAttribute("valida") === "true" ? true : false
+    // Evita o comportamento padrão de recarregar a página
+    event.preventDefault();
 
-    //Validções
+    const validaSenha = cadastroSenha.getAttribute("valida") === "true";
+
+    // Validações
     if (!cadastroCpf.checkValidity()) {
         alert('Por favor, insira um CPF válido no formato 000.000.000-00.');
-        return
+        return;
     } else if (!cpf.validarCPF(cadastroCpf.value)) {
         alert('CPF inválido');
-        return
-    }
-    else if (!validaSenha) {
+        return;
+    } else if (!validaSenha) {
         alert('Senhas precisam ser idênticas.');
-        return
+        return;
     }
-    console.log("CPF válido, senha confirmada")
-    
-    await api.cadastrarUsuario(cadastroNome.value, cadastroCpf.value, cadastroUsuario.value, cadastroSenha.value)
-    
+
+    console.log("CPF válido, senha confirmada");
+
+    try {
+        await api.requisitarTokenDeSessao();
+        event.preventDefault();
+        await api.cadastrarUsuario(cadastroNome.value, cadastroCpf.value, cadastroUsuario.value, cadastroSenha.value);
+    } catch (error) {
+        console.error("Erro ao cadastrar usuário:", error);
+        alert("Erro ao cadastrar usuário. Tente novamente.");
+    }
 });
+
 
 // Lista usuários ao carregar a página
 document.addEventListener("DOMContentLoaded", async () => {
-    const usuarios = await api.listarUsuarios()
+    const usuarios = JSON.parse(await api.listarUsuarios())
     usuarios.forEach(usuario => {
         listaUsuarios.innerHTML += `<li>[${usuario.nome}][${usuario.cpf}][${usuario.usuario}][${usuario.senha}]</li>`
     });
@@ -90,24 +99,25 @@ botaoLogin.addEventListener("click", async () => {
 
 const btTeste = document.getElementById("botao-testes")
 btTeste.addEventListener('click', async () => {
+    await api.requisitarTokenDeSessao()
+    console.log(`${api.publicKeySession} | ${api.sessionId}`)
+    // // const mensagemTeste = "Teste enviado"
+    // const hashSenha = await hash(loginSenha.value)
+    // const mensagemTeste = { nome: `'${loginUsuario.value}'`, senha: `'${hashSenha}'` };
+    // try {
+    //     const response = await axios.post(`${URL_BASE}/teste`, mensagemTeste, {
+    //         headers: {
+    //             'Content-Type': 'text/plain', // Indica que o corpo é texto simples
+    //         },
+    //     }
+    //     );
 
-    // const mensagemTeste = "Teste enviado"
-    const hashSenha = await hash(loginSenha.value)
-    const mensagemTeste = { nome: `'${loginUsuario.value}'`, senha: `'${hashSenha}'` };
-    try {
-        const response = await axios.post(`${URL_BASE}/teste`, mensagemTeste, {
-            headers: {
-                'Content-Type': 'text/plain', // Indica que o corpo é texto simples
-            },
-        }
-        );
 
+    //     // Obtendo os dados do corpo da resposta (body)
+    //     return await response.data;
 
-        // Obtendo os dados do corpo da resposta (body)
-        return await response.data;
-
-    } catch (error) {
-        alert(`Erro logar \r\n${error}`);
-        throw error;
-    }
+    // } catch (error) {
+    //     alert(`Erro logar \r\n${error}`);
+    //     throw error;
+    // }
 })
