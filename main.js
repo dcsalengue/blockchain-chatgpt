@@ -11,6 +11,7 @@ const repeteSenha = document.getElementById('repete-senha');
 const botaCadastrar = document.getElementById('botao-cadastrar');
 
 const loginUsuario = document.getElementById("login__usuario")
+const loginCpf = document.getElementById("login__cpf")
 const loginSenha = document.getElementById("login-senha")
 const botaoLogin = document.getElementById("botao-login")
 
@@ -31,6 +32,7 @@ repeteSenha.onchange = () => {
 
 // Seleciona o campo de CPF e aplica a máscara ao digitar
 cadastroCpf.addEventListener('input', cpf.aplicarMascaraCPF);
+loginCpf.addEventListener('input', cpf.aplicarMascaraCPF);
 
 // Adiciona validação do formulário para exibir mensagens personalizadas
 
@@ -76,7 +78,7 @@ botaoLogin.addEventListener("click", async () => {
     const publicKeyPem = await api.requisitarTokenDeSessao()
 
     const hashSenha = await criptografia.hash(loginSenha.value)
-    const usuario = { usuario: `${loginUsuario.value}`, senha: `${hashSenha}` };
+    const usuario = { usuario: `${loginCpf.value}`, senha: `${hashSenha}` };
 
     api.loginUsuario(usuario)
 

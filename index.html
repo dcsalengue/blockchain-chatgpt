@@ -18,9 +18,9 @@
     <section id="section-cadastro" class="flex p-4 bg-indigo-100 w-2/5">
         <form id="form-cadastro-usuario" class="flex flex-wrap justify-center gap-4">
             <input id="cadastro__nome" name="cadastro__nome" type="text" placeholder="Nome">
+            <input type="text" placeholder="email" id="cadastro__email" name="cadastro__usuario">
             <input type="text"  id="cadastro__cpf" name="cadastro__cpf" maxlength="14" placeholder="000.000.000-00"
                 pattern="\d{3}\.\d{3}\.\d{3}-\d{2}" required>
-            <input type="text" placeholder="Usuário" id="cadastro__usuario" name="cadastro__usuario">
             <input type="hidden" id="hash__senha" name="hash__senha">
             <input type="password" placeholder="senha" id="cadastro__senha" valida=false>
             <input type="password" placeholder="Repetir senha" id="repete-senha">
@@ -33,7 +33,8 @@
 
     <section id="section-login" class="flex p-4 bg-indigo-100 w-2/5">
         <div class="flex flex-wrap justify-center gap-4">
-            <input type="text" placeholder="Usuário" id="login__usuario">
+            <input type="text"  id="login__cpf" name="login__cpf" maxlength="14" placeholder="000.000.000-00"
+                pattern="\d{3}\.\d{3}\.\d{3}-\d{2}" required>
             <input type="password" placeholder="senha" id="login-senha">
         </div>
         <button id="botao-login" type="button">Login</button>
