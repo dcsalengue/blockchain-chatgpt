@@ -76,9 +76,6 @@ app.delete('/usuarios/:cpf', (req, res) => {
     trataArquivos.arquivoUsuarios.splice(usuarioIndex, 1);
     res.json({ message: 'Usuário excluído com sucesso!' });
 });
-// // Isso precisa ser alterado, vinculado ao usuário
-// let globalPublicKey
-// let globalPrivateKey
 
 // Usar algum meio de excluir as sessões mais antigas de tempos em tempos caso não sejam usadas 
 let globalKeys = {}; // Para armazenar pares de chaves para sessões específicas
@@ -136,37 +133,53 @@ app.post('/usuarios', async (req, res) => {
     }
 });
 
-
-
-
+// Rota para criar um novo usuário (CREATE)
 app.post('/login', async (req, res) => {
-    const mensagem = JSON.stringify(req.body, null, 2)
-    // Serializa e exibe o payload recebido
-    console.log(`/login:\n${req.body}`);
+    try {
+        const { data, sessionId } = req.body;
 
-    // Verifica se o payload é uma string
-    if (typeof mensagem === 'string') {
-        try {
-            // Descriptografa o dado recebido com a chave privada
-            const decryptedData = await cripto.descriptografar(mensagem, globalPrivateKey);
-            const loginUser = JSON.parse(decryptedData);
-            const usuario = trataArquivos.arquivoUsuarios.find((usr) => (usr.usuario === loginUser.usuario) && ((usr.senha === loginUser.senha)));
-
-            if (!usuario) {
-                return res.status(401).json({ error: 'Usuário ou senha inválidos!' });
-            }
-            res.send(usuario.nome);
-        } catch (error) {
-            console.error('Erro ao descriptografar os dados:', error);
-            res.status(500).json({ error: 'Erro interno no servidor!' });
+        // Verifica se a sessão é válida
+        if (!globalKeys[sessionId]) {
+            return res.status(400).json({ error: 'Sessão inválida ou expirou.' });
         }
-    } else {
-        console.error('Erro: O payload não é uma string.');
+
+        const privateKey = globalKeys[sessionId].privateKey;
+        const decryptedData = await cripto.descriptografar(data, privateKey);
+
+        // Converte os dados descriptografados de volta para JSON
+        const { usuario, senha } = JSON.parse(decryptedData);
+
+        console.log(usuario)
+
+        // Garante que os usuários estão sendo carregados corretamente
+        let users = [];
+        if (Array.isArray(trataArquivos.arquivoUsuarios)) {
+            users = trataArquivos.arquivoUsuarios;
+        } else if (typeof trataArquivos.arquivoUsuarios === 'string') {
+            users = JSON.parse(trataArquivos.arquivoUsuarios);
+        }
+
+        // Tenta encontrar o usuário
+        const user = users.find(u => u.cpf === usuario);
+
+        // Verifica se o CPF já existe
+        if (user) {
+            console.log(`CPF está cadastrado`);
+            if (user.senha === senha) {
+                res.status(200).json({ message: `Login efetuado! ${user.nome}` });
+            } else {
+                return res.status(400).json({ error: 'Senha incorreta!' });
+            }
+        } else {
+            return res.status(400).json({ error: 'CPF não cadastrado!' });
+        }
+
+
+    } catch (error) {
+        console.error('Erro ao logar usuário:', error);
+        res.status(500).json({ error: 'Erro ao logar usuário. Verifique os dados enviados.' });
     }
-
-
 });
-
 
 app.post('/teste', (req, res) => {
     const mensagem = JSON.stringify(req.body, null, 2)

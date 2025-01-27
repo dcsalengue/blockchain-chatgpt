@@ -56,7 +56,6 @@ botaCadastrar.addEventListener('click', async function (event) {
 
     try {
         await api.requisitarTokenDeSessao();
-        event.preventDefault();
         await api.cadastrarUsuario(cadastroNome.value, cadastroCpf.value, cadastroUsuario.value, cadastroSenha.value);
     } catch (error) {
         console.error("Erro ao cadastrar usuário:", error);
@@ -79,13 +78,7 @@ botaoLogin.addEventListener("click", async () => {
     const hashSenha = await criptografia.hash(loginSenha.value)
     const usuario = { usuario: `${loginUsuario.value}`, senha: `${hashSenha}` };
 
-    // Criptografando os dados
-    const encryptedData = await criptografia.encryptUserData(publicKeyPem, usuario);
-
-    //const encryptedData = await criptografar(usuario, publicKeyPem)
-    console.log('Dados criptografados:', encryptedData);
-
-    api.loginUsuario(encryptedData)
+    api.loginUsuario(usuario)
 
     // Requisita token de sessão (get /tokendesessao)
     // Servidor gera um par de chaves pública e privada e coloca em uma lista de sessões ativas
@@ -101,23 +94,4 @@ const btTeste = document.getElementById("botao-testes")
 btTeste.addEventListener('click', async () => {
     await api.requisitarTokenDeSessao()
     console.log(`${api.publicKeySession} | ${api.sessionId}`)
-    // // const mensagemTeste = "Teste enviado"
-    // const hashSenha = await hash(loginSenha.value)
-    // const mensagemTeste = { nome: `'${loginUsuario.value}'`, senha: `'${hashSenha}'` };
-    // try {
-    //     const response = await axios.post(`${URL_BASE}/teste`, mensagemTeste, {
-    //         headers: {
-    //             'Content-Type': 'text/plain', // Indica que o corpo é texto simples
-    //         },
-    //     }
-    //     );
-
-
-    //     // Obtendo os dados do corpo da resposta (body)
-    //     return await response.data;
-
-    // } catch (error) {
-    //     alert(`Erro logar \r\n${error}`);
-    //     throw error;
-    // }
 })
